@@ -1,0 +1,508 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection test endpoint
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Global Primitive Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email == 'lakshya.tech2026@gmail.com' &&
+        request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        isBootstrappedAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'ACTIVE')
+      );
+    }
+
+    function isStaff() {
+      return isSignedIn() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'STAFF' &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'ACTIVE')
+      );
+    }
+
+    // Validation Helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'email', 'name', 'role', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'email', 'name', 'role', 'status', 'customerId', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.role is string && (data.role == 'ADMIN' || data.role == 'STAFF' || data.role == 'CUSTOMER') &&
+        data.status is string && (data.status == 'ACTIVE' || data.status == 'INACTIVE') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('customerId' in data) || (data.customerId is string && data.customerId.size() <= 128));
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'name', 'email', 'phone', 'company', 'gstin', 'billingAddress', 'status', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.status is string && (data.status == 'ACTIVE' || data.status == 'INACTIVE') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 32)) &&
+        (!('company' in data) || (data.company is string && data.company.size() <= 160)) &&
+        (!('gstin' in data) || (data.gstin is string && data.gstin.size() <= 32)) &&
+        (!('billingAddress' in data) || (data.billingAddress is string && data.billingAddress.size() <= 500));
+    }
+
+    function isValidStaff(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'name', 'email', 'department', 'role', 'status', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.role is string && (data.role == 'ADMIN' || data.role == 'STAFF') &&
+        data.status is string && (data.status == 'ACTIVE' || data.status == 'INACTIVE') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+        (!('department' in data) || (data.department is string && data.department.size() <= 100));
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'productType', 'salesPricePaise', 'costPricePaise', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'productType', 'salesPricePaise', 'costPricePaise', 'description', 'status', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        data.productType is string && (data.productType == 'SERVICE' || data.productType == 'SAAS' || data.productType == 'ADDON' || data.productType == 'LICENSE') &&
+        data.salesPricePaise is int && data.salesPricePaise >= 0 &&
+        data.costPricePaise is int && data.costPricePaise >= 0 &&
+        data.status is string && (data.status == 'ACTIVE' || data.status == 'ARCHIVED') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 1000));
+    }
+
+    function isValidProductVariant(data) {
+      return data.keys().hasAll(['id', 'productId', 'attributeName', 'attributeValue', 'additionalPricePaise', 'status']) &&
+        data.keys().hasOnly(['id', 'productId', 'attributeName', 'attributeValue', 'additionalPricePaise', 'sku', 'status']) &&
+        isValidId(data.id) &&
+        isValidId(data.productId) &&
+        data.attributeName is string && data.attributeName.size() >= 1 && data.attributeName.size() <= 80 &&
+        data.attributeValue is string && data.attributeValue.size() >= 1 && data.attributeValue.size() <= 120 &&
+        data.additionalPricePaise is int &&
+        data.status is string && (data.status == 'ACTIVE' || data.status == 'INACTIVE') &&
+        (!('sku' in data) || (data.sku is string && data.sku.size() <= 64));
+    }
+
+    function isValidPlan(data) {
+      return data.keys().hasAll(['id', 'name', 'pricePaise', 'billingFrequency', 'minQuantity', 'allowEarlyClosure', 'allowPause', 'allowRenewal', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'pricePaise', 'billingFrequency', 'minQuantity', 'availableFrom', 'availableUntil', 'autoCloseDays', 'allowEarlyClosure', 'allowPause', 'allowRenewal', 'status', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        data.pricePaise is int && data.pricePaise >= 0 &&
+        data.billingFrequency is string && (data.billingFrequency == 'DAILY' || data.billingFrequency == 'WEEKLY' || data.billingFrequency == 'MONTHLY' || data.billingFrequency == 'YEARLY') &&
+        data.minQuantity is int && data.minQuantity >= 1 &&
+        data.allowEarlyClosure is bool &&
+        data.allowPause is bool &&
+        data.allowRenewal is bool &&
+        data.status is string && (data.status == 'ACTIVE' || data.status == 'INACTIVE') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('availableFrom' in data) || (data.availableFrom is string && data.availableFrom.size() <= 32)) &&
+        (!('availableUntil' in data) || (data.availableUntil is string && data.availableUntil.size() <= 32)) &&
+        (!('autoCloseDays' in data) || (data.autoCloseDays is int && data.autoCloseDays >= 0));
+    }
+
+    function isValidQuotationTemplate(data) {
+      return data.keys().hasAll(['id', 'name', 'planId', 'validityDays', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'planId', 'validityDays', 'description', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        isValidId(data.planId) &&
+        data.validityDays is int && data.validityDays >= 1 && data.validityDays <= 365 &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 500));
+    }
+
+    function isValidQuotation(data) {
+      return data.keys().hasAll(['id', 'quotationNumber', 'customerId', 'planId', 'subtotalPaise', 'discountPaise', 'taxPaise', 'totalPaise', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'quotationNumber', 'customerId', 'customerName', 'planId', 'planName', 'validityDays', 'validUntil', 'subtotalPaise', 'discountPaise', 'taxPaise', 'totalPaise', 'status', 'convertedSubscriptionId', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.quotationNumber is string && data.quotationNumber.size() >= 1 && data.quotationNumber.size() <= 64 &&
+        isValidId(data.customerId) &&
+        isValidId(data.planId) &&
+        data.subtotalPaise is int && data.subtotalPaise >= 0 &&
+        data.discountPaise is int && data.discountPaise >= 0 &&
+        data.taxPaise is int && data.taxPaise >= 0 &&
+        data.totalPaise is int && data.totalPaise >= 0 &&
+        data.status is string && (data.status == 'DRAFT' || data.status == 'QUOTATION' || data.status == 'CONFIRMED' || data.status == 'ACTIVE' || data.status == 'CLOSED') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('customerName' in data) || (data.customerName is string && data.customerName.size() <= 160)) &&
+        (!('planName' in data) || (data.planName is string && data.planName is string && data.planName.size() <= 160)) &&
+        (!('validityDays' in data) || (data.validityDays is int && data.validityDays >= 1)) &&
+        (!('validUntil' in data) || (data.validUntil is string && data.validUntil.size() <= 32)) &&
+        (!('convertedSubscriptionId' in data) || (data.convertedSubscriptionId is string && data.convertedSubscriptionId.size() <= 128));
+    }
+
+    function isValidSubscription(data) {
+      return data.keys().hasAll(['id', 'subscriptionNumber', 'customerId', 'planId', 'billingFrequency', 'startDate', 'expiryDate', 'subtotalPaise', 'discountPaise', 'taxPaise', 'totalPaise', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'subscriptionNumber', 'customerId', 'customerName', 'planId', 'planName', 'billingFrequency', 'startDate', 'expiryDate', 'nextBillingDate', 'paymentTerms', 'subtotalPaise', 'discountPaise', 'taxPaise', 'totalPaise', 'status', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.subscriptionNumber is string && data.subscriptionNumber.size() >= 1 && data.subscriptionNumber.size() <= 64 &&
+        isValidId(data.customerId) &&
+        isValidId(data.planId) &&
+        data.billingFrequency is string && (data.billingFrequency == 'DAILY' || data.billingFrequency == 'WEEKLY' || data.billingFrequency == 'MONTHLY' || data.billingFrequency == 'YEARLY') &&
+        data.startDate is string && data.startDate.size() <= 32 &&
+        data.expiryDate is string && data.expiryDate.size() <= 32 &&
+        data.subtotalPaise is int && data.subtotalPaise >= 0 &&
+        data.discountPaise is int && data.discountPaise >= 0 &&
+        data.taxPaise is int && data.taxPaise >= 0 &&
+        data.totalPaise is int && data.totalPaise >= 0 &&
+        data.status is string && (data.status == 'DRAFT' || data.status == 'QUOTATION' || data.status == 'CONFIRMED' || data.status == 'ACTIVE' || data.status == 'PAUSED' || data.status == 'CLOSED') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('customerName' in data) || (data.customerName is string && data.customerName.size() <= 160)) &&
+        (!('planName' in data) || (data.planName is string && data.planName.size() <= 160)) &&
+        (!('nextBillingDate' in data) || (data.nextBillingDate is string && data.nextBillingDate.size() <= 32)) &&
+        (!('paymentTerms' in data) || (data.paymentTerms is string && data.paymentTerms.size() <= 64));
+    }
+
+    function isValidSubscriptionLine(data) {
+      return data.keys().hasAll(['id', 'subscriptionId', 'productId', 'productName', 'quantity', 'unitPricePaise', 'lineTotalPaise']) &&
+        data.keys().hasOnly(['id', 'subscriptionId', 'productId', 'productName', 'variantId', 'variantLabel', 'quantity', 'unitPricePaise', 'lineTotalPaise']) &&
+        isValidId(data.id) &&
+        isValidId(data.subscriptionId) &&
+        isValidId(data.productId) &&
+        data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 160 &&
+        data.quantity is int && data.quantity >= 1 &&
+        data.unitPricePaise is int && data.unitPricePaise >= 0 &&
+        data.lineTotalPaise is int && data.lineTotalPaise >= 0 &&
+        (!('variantId' in data) || (data.variantId is string && data.variantId.size() <= 128)) &&
+        (!('variantLabel' in data) || (data.variantLabel is string && data.variantLabel.size() <= 160));
+    }
+
+    function isValidInvoice(data) {
+      return data.keys().hasAll(['id', 'invoiceNumber', 'idempotencyKey', 'subscriptionId', 'customerId', 'invoiceDate', 'dueDate', 'subtotalPaise', 'discountPaise', 'taxPaise', 'grandTotalPaise', 'amountPaidPaise', 'balanceDuePaise', 'status', 'paymentStatus', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'invoiceNumber', 'idempotencyKey', 'subscriptionId', 'subscriptionNumber', 'customerId', 'customerName', 'billingPeriodKey', 'invoiceDate', 'dueDate', 'subtotalPaise', 'discountPaise', 'taxPaise', 'grandTotalPaise', 'amountPaidPaise', 'balanceDuePaise', 'status', 'paymentStatus', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.invoiceNumber is string && data.invoiceNumber.size() >= 1 && data.invoiceNumber.size() <= 64 &&
+        data.idempotencyKey is string && data.idempotencyKey.size() >= 1 && data.idempotencyKey.size() <= 160 &&
+        isValidId(data.subscriptionId) &&
+        isValidId(data.customerId) &&
+        data.invoiceDate is string && data.invoiceDate.size() <= 32 &&
+        data.dueDate is string && data.dueDate.size() <= 32 &&
+        data.subtotalPaise is int && data.subtotalPaise >= 0 &&
+        data.discountPaise is int && data.discountPaise >= 0 &&
+        data.taxPaise is int && data.taxPaise >= 0 &&
+        data.grandTotalPaise is int && data.grandTotalPaise >= 0 &&
+        data.amountPaidPaise is int && data.amountPaidPaise >= 0 &&
+        data.balanceDuePaise is int && data.balanceDuePaise >= 0 &&
+        data.status is string && (data.status == 'DRAFT' || data.status == 'CONFIRMED' || data.status == 'PAID') &&
+        data.paymentStatus is string && (data.paymentStatus == 'UNPAID' || data.paymentStatus == 'PARTIAL' || data.paymentStatus == 'PAID' || data.paymentStatus == 'OVERDUE') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('subscriptionNumber' in data) || (data.subscriptionNumber is string && data.subscriptionNumber.size() <= 64)) &&
+        (!('customerName' in data) || (data.customerName is string && data.customerName.size() <= 160)) &&
+        (!('billingPeriodKey' in data) || (data.billingPeriodKey is string && data.billingPeriodKey.size() <= 64));
+    }
+
+    function isValidInvoiceLine(data) {
+      return data.keys().hasAll(['id', 'invoiceId', 'productId', 'description', 'quantity', 'unitPricePaise', 'lineTotalPaise']) &&
+        data.keys().hasOnly(['id', 'invoiceId', 'productId', 'description', 'quantity', 'unitPricePaise', 'lineTotalPaise']) &&
+        isValidId(data.id) &&
+        isValidId(data.invoiceId) &&
+        isValidId(data.productId) &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 240 &&
+        data.quantity is int && data.quantity >= 1 &&
+        data.unitPricePaise is int && data.unitPricePaise >= 0 &&
+        data.lineTotalPaise is int && data.lineTotalPaise >= 0;
+    }
+
+    function isValidTaxRule(data) {
+      return data.keys().hasAll(['id', 'name', 'percentageBasisPoints', 'taxType', 'effectiveStartDate', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'percentageBasisPoints', 'taxType', 'effectiveStartDate', 'effectiveEndDate', 'status', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.percentageBasisPoints is int && data.percentageBasisPoints >= 0 && data.percentageBasisPoints <= 10000 &&
+        data.taxType is string && (data.taxType == 'GST' || data.taxType == 'IGST' || data.taxType == 'CGST_SGST' || data.taxType == 'VAT' || data.taxType == 'CUSTOM') &&
+        data.effectiveStartDate is string && data.effectiveStartDate.size() <= 32 &&
+        data.status is string && (data.status == 'ACTIVE' || data.status == 'INACTIVE') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('effectiveEndDate' in data) || (data.effectiveEndDate is string && data.effectiveEndDate.size() <= 32));
+    }
+
+    function isValidDiscountRule(data) {
+      return data.keys().hasAll(['id', 'name', 'code', 'discountType', 'value', 'minPurchasePaise', 'minQuantity', 'startDate', 'maxUsageCount', 'usedCount', 'scope', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'code', 'discountType', 'value', 'minPurchasePaise', 'minQuantity', 'startDate', 'endDate', 'maxUsageCount', 'usedCount', 'scope', 'status', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.code is string && data.code.size() >= 1 && data.code.size() <= 64 &&
+        data.discountType is string && (data.discountType == 'PERCENTAGE' || data.discountType == 'FIXED_PAISE') &&
+        data.value is int && data.value >= 0 &&
+        data.minPurchasePaise is int && data.minPurchasePaise >= 0 &&
+        data.minQuantity is int && data.minQuantity >= 1 &&
+        data.startDate is string && data.startDate.size() <= 32 &&
+        data.maxUsageCount is int && data.maxUsageCount >= 1 &&
+        data.usedCount is int && data.usedCount >= 0 && data.usedCount <= data.maxUsageCount &&
+        data.scope is string && (data.scope == 'SUBSCRIPTION_WIDE' || data.scope == 'PRODUCT_SPECIFIC') &&
+        data.status is string && (data.status == 'ACTIVE' || data.status == 'INACTIVE') &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('endDate' in data) || (data.endDate is string && data.endDate.size() <= 32));
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['id', 'paymentNumber', 'customerId', 'invoiceId', 'paymentMethod', 'amountPaise', 'paymentDate', 'transactionReference', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'paymentNumber', 'customerId', 'customerName', 'invoiceId', 'invoiceNumber', 'paymentMethod', 'amountPaise', 'paymentDate', 'transactionReference', 'notes', 'createdAt']) &&
+        isValidId(data.id) &&
+        data.paymentNumber is string && data.paymentNumber.size() >= 1 && data.paymentNumber.size() <= 64 &&
+        isValidId(data.customerId) &&
+        isValidId(data.invoiceId) &&
+        data.paymentMethod is string && (data.paymentMethod == 'UPI' || data.paymentMethod == 'BANK_TRANSFER' || data.paymentMethod == 'CASH' || data.paymentMethod == 'CARD' || data.paymentMethod == 'OTHER') &&
+        data.amountPaise is int && data.amountPaise > 0 &&
+        data.paymentDate is string && data.paymentDate.size() <= 32 &&
+        data.transactionReference is string && data.transactionReference.size() >= 1 && data.transactionReference.size() <= 128 &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('customerName' in data) || (data.customerName is string && data.customerName.size() <= 160)) &&
+        (!('invoiceNumber' in data) || (data.invoiceNumber is string && data.invoiceNumber.size() <= 64)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['id', 'actorId', 'actorName', 'actorRole', 'action', 'entityType', 'entityId', 'details', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'actorId', 'actorName', 'actorRole', 'action', 'entityType', 'entityId', 'details', 'createdAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.actorId) &&
+        data.actorName is string && data.actorName.size() >= 1 && data.actorName.size() <= 120 &&
+        data.actorRole is string && (data.actorRole == 'ADMIN' || data.actorRole == 'STAFF' || data.actorRole == 'CUSTOMER' || data.actorRole == 'SYSTEM') &&
+        data.action is string && data.action.size() >= 1 && data.action.size() <= 120 &&
+        data.entityType is string && data.entityType.size() >= 1 && data.entityType.size() <= 64 &&
+        isValidId(data.entityId) &&
+        data.details is string && data.details.size() <= 1000 &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    // 1. /users/{userId}
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isStaff());
+      allow list: if isSignedIn() && (resource.data.id == request.auth.uid || isStaff());
+      allow create: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && incoming().id == userId && (
+        (request.auth.uid == userId && incoming().role == 'CUSTOMER' && incoming().status == 'ACTIVE') ||
+        isAdmin()
+      );
+      allow update: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt && (
+          isAdmin() ||
+          (request.auth.uid == userId && incoming().role == existing().role && incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email', 'customerId']))
+        );
+      allow delete: if isSignedIn() && isValidId(userId) && isAdmin();
+    }
+
+    // 2. /customers/{customerId}
+    match /customers/{customerId} {
+      allow get: if isSignedIn() && isValidId(customerId) && (existing().userId == request.auth.uid || existing().id == request.auth.uid || isStaff());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.id == request.auth.uid || isStaff());
+      allow create: if isSignedIn() && isValidId(customerId) && isValidCustomer(incoming()) && incoming().id == customerId && (
+        isStaff() || (incoming().userId == request.auth.uid && incoming().status == 'ACTIVE')
+      );
+      allow update: if isSignedIn() && isValidId(customerId) && isValidCustomer(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt && (
+          isStaff() ||
+          (existing().userId == request.auth.uid && incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'company', 'gstin', 'billingAddress']))
+        );
+      allow delete: if isSignedIn() && isValidId(customerId) && isAdmin();
+    }
+
+    // 3. /staff/{staffId}
+    match /staff/{staffId} {
+      allow get: if isSignedIn() && isValidId(staffId) && isStaff();
+      allow list: if isSignedIn() && isStaff() && resource.data.id is string;
+      allow create: if isSignedIn() && isValidId(staffId) && isValidStaff(incoming()) && incoming().id == staffId && isAdmin();
+      allow update: if isSignedIn() && isValidId(staffId) && isValidStaff(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin();
+      allow delete: if isSignedIn() && isValidId(staffId) && isAdmin();
+    }
+
+    // 4. /products/{productId}
+    match /products/{productId} {
+      allow get: if isSignedIn() && isValidId(productId) && (existing().status == 'ACTIVE' || isStaff());
+      allow list: if isSignedIn() && (resource.data.status == 'ACTIVE' || isStaff());
+      allow create: if isSignedIn() && isValidId(productId) && isValidProduct(incoming()) && incoming().id == productId && isAdmin();
+      allow update: if isSignedIn() && isValidId(productId) && isValidProduct(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin();
+      allow delete: if isSignedIn() && isValidId(productId) && isAdmin();
+    }
+
+    // 5. /productVariants/{variantId}
+    match /productVariants/{variantId} {
+      allow get: if isSignedIn() && isValidId(variantId) && (existing().status == 'ACTIVE' || isStaff());
+      allow list: if isSignedIn() && (resource.data.status == 'ACTIVE' || isStaff());
+      allow create: if isSignedIn() && isValidId(variantId) && isValidProductVariant(incoming()) && incoming().id == variantId && isAdmin();
+      allow update: if isSignedIn() && isValidId(variantId) && isValidProductVariant(incoming()) &&
+        incoming().id == existing().id &&
+        isAdmin();
+      allow delete: if isSignedIn() && isValidId(variantId) && isAdmin();
+    }
+
+    // 6. /plans/{planId}
+    match /plans/{planId} {
+      allow get: if isSignedIn() && isValidId(planId) && (existing().status == 'ACTIVE' || isStaff());
+      allow list: if isSignedIn() && (resource.data.status == 'ACTIVE' || isStaff());
+      allow create: if isSignedIn() && isValidId(planId) && isValidPlan(incoming()) && incoming().id == planId && isAdmin();
+      allow update: if isSignedIn() && isValidId(planId) && isValidPlan(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin();
+      allow delete: if isSignedIn() && isValidId(planId) && isAdmin();
+    }
+
+    // 7. /quotationTemplates/{templateId}
+    match /quotationTemplates/{templateId} {
+      allow get: if isSignedIn() && isValidId(templateId) && isStaff();
+      allow list: if isSignedIn() && isStaff() && resource.data.id is string;
+      allow create: if isSignedIn() && isValidId(templateId) && isValidQuotationTemplate(incoming()) && incoming().id == templateId && isStaff();
+      allow update: if isSignedIn() && isValidId(templateId) && isValidQuotationTemplate(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        isStaff();
+      allow delete: if isSignedIn() && isValidId(templateId) && isStaff();
+    }
+
+    // 8. /quotations/{quotationId}
+    match /quotations/{quotationId} {
+      allow get: if isSignedIn() && isValidId(quotationId) && (existing().customerId == request.auth.uid || isStaff());
+      allow list: if isSignedIn() && (resource.data.customerId == request.auth.uid || isStaff());
+      allow create: if isSignedIn() && isValidId(quotationId) && isValidQuotation(incoming()) && incoming().id == quotationId && isStaff();
+      allow update: if isSignedIn() && isValidId(quotationId) && isValidQuotation(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        (existing().status != 'CLOSED' || isAdmin()) &&
+        isStaff();
+      allow delete: if isSignedIn() && isValidId(quotationId) && isAdmin();
+    }
+
+    // 9. /subscriptions/{subscriptionId}
+    match /subscriptions/{subscriptionId} {
+      allow get: if isSignedIn() && isValidId(subscriptionId) && (existing().customerId == request.auth.uid || isStaff());
+      allow list: if isSignedIn() && (resource.data.customerId == request.auth.uid || isStaff());
+      allow create: if isSignedIn() && isValidId(subscriptionId) && isValidSubscription(incoming()) && incoming().id == subscriptionId && isStaff();
+      allow update: if isSignedIn() && isValidId(subscriptionId) && isValidSubscription(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        (existing().status != 'CLOSED' || isAdmin()) && (
+          isStaff() ||
+          (existing().customerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && (incoming().status == 'PAUSED' || incoming().status == 'ACTIVE' || incoming().status == 'CLOSED'))
+        );
+      allow delete: if isSignedIn() && isValidId(subscriptionId) && isAdmin();
+    }
+
+    // 10. /subscriptionLines/{lineId}
+    match /subscriptionLines/{lineId} {
+      allow get: if isSignedIn() && isValidId(lineId) && isStaff();
+      allow list: if isSignedIn() && isStaff() && resource.data.id is string;
+      allow create: if isSignedIn() && isValidId(lineId) && isValidSubscriptionLine(incoming()) && incoming().id == lineId && isStaff();
+      allow update: if isSignedIn() && isValidId(lineId) && isValidSubscriptionLine(incoming()) &&
+        incoming().id == existing().id &&
+        isStaff();
+      allow delete: if isSignedIn() && isValidId(lineId) && isStaff();
+    }
+
+    // 11. /invoices/{invoiceId}
+    match /invoices/{invoiceId} {
+      allow get: if isSignedIn() && isValidId(invoiceId) && (existing().customerId == request.auth.uid || isStaff());
+      allow list: if isSignedIn() && (resource.data.customerId == request.auth.uid || isStaff());
+      allow create: if isSignedIn() && isValidId(invoiceId) && isValidInvoice(incoming()) && incoming().id == invoiceId && isStaff();
+      allow update: if isSignedIn() && isValidId(invoiceId) && isValidInvoice(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().idempotencyKey == existing().idempotencyKey &&
+        incoming().createdAt == existing().createdAt &&
+        (existing().status != 'PAID' || isAdmin()) &&
+        isStaff();
+      allow delete: if isSignedIn() && isValidId(invoiceId) && isAdmin();
+    }
+
+    // 12. /invoiceLines/{lineId}
+    match /invoiceLines/{lineId} {
+      allow get: if isSignedIn() && isValidId(lineId) && isStaff();
+      allow list: if isSignedIn() && isStaff() && resource.data.id is string;
+      allow create: if isSignedIn() && isValidId(lineId) && isValidInvoiceLine(incoming()) && incoming().id == lineId && isStaff();
+      allow update: if isSignedIn() && isValidId(lineId) && isValidInvoiceLine(incoming()) &&
+        incoming().id == existing().id &&
+        isStaff();
+      allow delete: if isSignedIn() && isValidId(lineId) && isAdmin();
+    }
+
+    // 13. /taxRules/{taxId}
+    match /taxRules/{taxId} {
+      allow get: if isSignedIn() && isValidId(taxId) && (existing().status == 'ACTIVE' || isStaff());
+      allow list: if isSignedIn() && (resource.data.status == 'ACTIVE' || isStaff());
+      allow create: if isSignedIn() && isValidId(taxId) && isValidTaxRule(incoming()) && incoming().id == taxId && isAdmin();
+      allow update: if isSignedIn() && isValidId(taxId) && isValidTaxRule(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin();
+      allow delete: if isSignedIn() && isValidId(taxId) && isAdmin();
+    }
+
+    // 14. /discountRules/{discountId}
+    match /discountRules/{discountId} {
+      allow get: if isSignedIn() && isValidId(discountId) && (existing().status == 'ACTIVE' || isStaff());
+      allow list: if isSignedIn() && (resource.data.status == 'ACTIVE' || isStaff());
+      allow create: if isSignedIn() && isValidId(discountId) && isValidDiscountRule(incoming()) && incoming().id == discountId && isAdmin();
+      allow update: if isSignedIn() && isValidId(discountId) && isValidDiscountRule(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt && (
+          isAdmin() ||
+          (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['usedCount']) && incoming().usedCount == existing().usedCount + 1)
+        );
+      allow delete: if isSignedIn() && isValidId(discountId) && isAdmin();
+    }
+
+    // 15. /payments/{paymentId}
+    match /payments/{paymentId} {
+      allow get: if isSignedIn() && isValidId(paymentId) && (existing().customerId == request.auth.uid || isStaff());
+      allow list: if isSignedIn() && (resource.data.customerId == request.auth.uid || isStaff());
+      allow create: if isSignedIn() && isValidId(paymentId) && isValidPayment(incoming()) && incoming().id == paymentId && isStaff();
+      allow update: if isSignedIn() && isValidId(paymentId) && isValidPayment(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin();
+      allow delete: if isSignedIn() && isValidId(paymentId) && isAdmin();
+    }
+
+    // 16. /auditLogs/{logId}
+    match /auditLogs/{logId} {
+      allow get: if isSignedIn() && isValidId(logId) && isAdmin();
+      allow list: if isSignedIn() && isAdmin() && resource.data.id is string;
+      allow create: if isSignedIn() && isValidId(logId) && isValidAuditLog(incoming()) && incoming().id == logId && incoming().actorId == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}

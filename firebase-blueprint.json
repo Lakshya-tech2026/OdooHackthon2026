@@ -1,0 +1,367 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated platform user account with role assignment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["ADMIN", "STAFF", "CUSTOMER"] },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "email", "name", "role", "status", "createdAt"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer organization or individual profile subscribed to plans.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "company": { "type": "string", "maxLength": 160 },
+        "gstin": { "type": "string", "maxLength": 32 },
+        "billingAddress": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "name", "email", "status", "createdAt"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Operational staff member account managed by Admin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "department": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "enum": ["ADMIN", "STAFF"] },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "name", "email", "role", "status", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Subscription software, service, or add-on product stored in minor units (paise).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "productType": { "type": "string", "enum": ["SERVICE", "SAAS", "ADDON", "LICENSE"] },
+        "salesPricePaise": { "type": "integer" },
+        "costPricePaise": { "type": "integer" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["ACTIVE", "ARCHIVED"] },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "name", "productType", "salesPricePaise", "costPricePaise", "status", "createdAt"]
+    },
+    "ProductVariant": {
+      "title": "ProductVariant",
+      "description": "Variant attribute and additional price in paise linked to a Product.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "productId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "attributeName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "attributeValue": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "additionalPricePaise": { "type": "integer" },
+        "sku": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] }
+      },
+      "required": ["id", "productId", "attributeName", "attributeValue", "additionalPricePaise", "status"]
+    },
+    "Plan": {
+      "title": "Plan",
+      "description": "Recurring billing plan defining frequency, price, and lifecycle policies.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "pricePaise": { "type": "integer" },
+        "billingFrequency": { "type": "string", "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"] },
+        "minQuantity": { "type": "integer" },
+        "availableFrom": { "type": "string", "maxLength": 32 },
+        "availableUntil": { "type": "string", "maxLength": 32 },
+        "autoCloseDays": { "type": "integer" },
+        "allowEarlyClosure": { "type": "boolean" },
+        "allowPause": { "type": "boolean" },
+        "allowRenewal": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "name", "pricePaise", "billingFrequency", "minQuantity", "allowEarlyClosure", "allowPause", "allowRenewal", "status", "createdAt"]
+    },
+    "QuotationTemplate": {
+      "title": "QuotationTemplate",
+      "description": "Predefined quotation blueprint with default plan and validity days.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "planId": { "type": "string", "maxLength": 128 },
+        "validityDays": { "type": "integer" },
+        "description": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "name", "planId", "validityDays", "createdAt"]
+    },
+    "Quotation": {
+      "title": "Quotation",
+      "description": "Customer quotation prior to conversion into an active subscription.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "quotationNumber": { "type": "string", "maxLength": 64 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 160 },
+        "planId": { "type": "string", "maxLength": 128 },
+        "planName": { "type": "string", "maxLength": 160 },
+        "validityDays": { "type": "integer" },
+        "validUntil": { "type": "string", "maxLength": 32 },
+        "subtotalPaise": { "type": "integer" },
+        "discountPaise": { "type": "integer" },
+        "taxPaise": { "type": "integer" },
+        "totalPaise": { "type": "integer" },
+        "status": { "type": "string", "enum": ["DRAFT", "QUOTATION", "CONFIRMED", "ACTIVE", "CLOSED"] },
+        "convertedSubscriptionId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "quotationNumber", "customerId", "planId", "subtotalPaise", "discountPaise", "taxPaise", "totalPaise", "status", "createdAt"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Recurring customer subscription contract with full lifecycle status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "subscriptionNumber": { "type": "string", "maxLength": 64 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 160 },
+        "planId": { "type": "string", "maxLength": 128 },
+        "planName": { "type": "string", "maxLength": 160 },
+        "billingFrequency": { "type": "string", "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"] },
+        "startDate": { "type": "string", "maxLength": 32 },
+        "expiryDate": { "type": "string", "maxLength": 32 },
+        "nextBillingDate": { "type": "string", "maxLength": 32 },
+        "paymentTerms": { "type": "string", "maxLength": 64 },
+        "subtotalPaise": { "type": "integer" },
+        "discountPaise": { "type": "integer" },
+        "taxPaise": { "type": "integer" },
+        "totalPaise": { "type": "integer" },
+        "status": { "type": "string", "enum": ["DRAFT", "QUOTATION", "CONFIRMED", "ACTIVE", "PAUSED", "CLOSED"] },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "subscriptionNumber", "customerId", "planId", "billingFrequency", "startDate", "expiryDate", "subtotalPaise", "discountPaise", "taxPaise", "totalPaise", "status", "createdAt"]
+    },
+    "SubscriptionLine": {
+      "title": "SubscriptionLine",
+      "description": "Individual product and variant line item belonging to a subscription or quotation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "subscriptionId": { "type": "string", "maxLength": 128 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "productName": { "type": "string", "maxLength": 160 },
+        "variantId": { "type": "string", "maxLength": 128 },
+        "variantLabel": { "type": "string", "maxLength": 160 },
+        "quantity": { "type": "integer" },
+        "unitPricePaise": { "type": "integer" },
+        "lineTotalPaise": { "type": "integer" }
+      },
+      "required": ["id", "subscriptionId", "productId", "productName", "quantity", "unitPricePaise", "lineTotalPaise"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Idempotent billing invoice generated for a subscription period.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "invoiceNumber": { "type": "string", "maxLength": 64 },
+        "idempotencyKey": { "type": "string", "maxLength": 160 },
+        "subscriptionId": { "type": "string", "maxLength": 128 },
+        "subscriptionNumber": { "type": "string", "maxLength": 64 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 160 },
+        "billingPeriodKey": { "type": "string", "maxLength": 64 },
+        "invoiceDate": { "type": "string", "maxLength": 32 },
+        "dueDate": { "type": "string", "maxLength": 32 },
+        "subtotalPaise": { "type": "integer" },
+        "discountPaise": { "type": "integer" },
+        "taxPaise": { "type": "integer" },
+        "grandTotalPaise": { "type": "integer" },
+        "amountPaidPaise": { "type": "integer" },
+        "balanceDuePaise": { "type": "integer" },
+        "status": { "type": "string", "enum": ["DRAFT", "CONFIRMED", "PAID"] },
+        "paymentStatus": { "type": "string", "enum": ["UNPAID", "PARTIAL", "PAID", "OVERDUE"] },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "invoiceNumber", "idempotencyKey", "subscriptionId", "customerId", "invoiceDate", "dueDate", "subtotalPaise", "discountPaise", "taxPaise", "grandTotalPaise", "amountPaidPaise", "balanceDuePaise", "status", "paymentStatus", "createdAt"]
+    },
+    "InvoiceLine": {
+      "title": "InvoiceLine",
+      "description": "Line item on an invoice stored in minor units (paise).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "invoiceId": { "type": "string", "maxLength": 128 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 240 },
+        "quantity": { "type": "integer" },
+        "unitPricePaise": { "type": "integer" },
+        "lineTotalPaise": { "type": "integer" }
+      },
+      "required": ["id", "invoiceId", "productId", "description", "quantity", "unitPricePaise", "lineTotalPaise"]
+    },
+    "TaxRule": {
+      "title": "TaxRule",
+      "description": "Tax rule configured by Admin (e.g., GST 18%).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "percentageBasisPoints": { "type": "integer" },
+        "taxType": { "type": "string", "enum": ["GST", "IGST", "CGST_SGST", "VAT", "CUSTOM"] },
+        "effectiveStartDate": { "type": "string", "maxLength": 32 },
+        "effectiveEndDate": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "name", "percentageBasisPoints", "taxType", "effectiveStartDate", "status", "createdAt"]
+    },
+    "DiscountRule": {
+      "title": "DiscountRule",
+      "description": "Discount rule configured by Admin with usage limits and eligibility bounds.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "code": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "discountType": { "type": "string", "enum": ["PERCENTAGE", "FIXED_PAISE"] },
+        "value": { "type": "integer" },
+        "minPurchasePaise": { "type": "integer" },
+        "minQuantity": { "type": "integer" },
+        "startDate": { "type": "string", "maxLength": 32 },
+        "endDate": { "type": "string", "maxLength": 32 },
+        "maxUsageCount": { "type": "integer" },
+        "usedCount": { "type": "integer" },
+        "scope": { "type": "string", "enum": ["SUBSCRIPTION_WIDE", "PRODUCT_SPECIFIC"] },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "name", "code", "discountType", "value", "minPurchasePaise", "minQuantity", "startDate", "maxUsageCount", "usedCount", "scope", "status", "createdAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Recorded customer payment against an invoice in minor units (paise).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "paymentNumber": { "type": "string", "maxLength": 64 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 160 },
+        "invoiceId": { "type": "string", "maxLength": 128 },
+        "invoiceNumber": { "type": "string", "maxLength": 64 },
+        "paymentMethod": { "type": "string", "enum": ["UPI", "BANK_TRANSFER", "CASH", "CARD", "OTHER"] },
+        "amountPaise": { "type": "integer" },
+        "paymentDate": { "type": "string", "maxLength": 32 },
+        "transactionReference": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "paymentNumber", "customerId", "invoiceId", "paymentMethod", "amountPaise", "paymentDate", "transactionReference", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable operational audit record of sensitive lifecycle events.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorId": { "type": "string", "maxLength": 128 },
+        "actorName": { "type": "string", "maxLength": 120 },
+        "actorRole": { "type": "string", "enum": ["ADMIN", "STAFF", "CUSTOMER", "SYSTEM"] },
+        "action": { "type": "string", "maxLength": 120 },
+        "entityType": { "type": "string", "maxLength": 64 },
+        "entityId": { "type": "string", "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+      },
+      "required": ["id", "actorId", "actorName", "actorRole", "action", "entityType", "entityId", "details", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Platform user accounts and role assignments."
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Customer profiles and billing addresses."
+    },
+    "/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/Staff" },
+      "description": "Staff accounts managed by Admin."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Catalog products with prices in paise."
+    },
+    "/productVariants/{variantId}": {
+      "schema": { "$ref": "#/entities/ProductVariant" },
+      "description": "Product variants and additional pricing in paise."
+    },
+    "/plans/{planId}": {
+      "schema": { "$ref": "#/entities/Plan" },
+      "description": "Recurring billing plans and lifecycle policies."
+    },
+    "/quotationTemplates/{templateId}": {
+      "schema": { "$ref": "#/entities/QuotationTemplate" },
+      "description": "Reusable quotation templates."
+    },
+    "/quotations/{quotationId}": {
+      "schema": { "$ref": "#/entities/Quotation" },
+      "description": "Customer quotations."
+    },
+    "/subscriptions/{subscriptionId}": {
+      "schema": { "$ref": "#/entities/Subscription" },
+      "description": "Customer subscriptions and billing schedules."
+    },
+    "/subscriptionLines/{lineId}": {
+      "schema": { "$ref": "#/entities/SubscriptionLine" },
+      "description": "Line items attached to quotations and subscriptions."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": { "$ref": "#/entities/Invoice" },
+      "description": "Generated customer invoices."
+    },
+    "/invoiceLines/{lineId}": {
+      "schema": { "$ref": "#/entities/InvoiceLine" },
+      "description": "Individual product lines on invoices."
+    },
+    "/taxRules/{taxId}": {
+      "schema": { "$ref": "#/entities/TaxRule" },
+      "description": "Tax rules configured by Admin."
+    },
+    "/discountRules/{discountId}": {
+      "schema": { "$ref": "#/entities/DiscountRule" },
+      "description": "Discount rules and usage counters configured by Admin."
+    },
+    "/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/Payment" },
+      "description": "Recorded payments against customer invoices."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "System and staff audit trail logs."
+    }
+  }
+}

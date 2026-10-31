@@ -1,0 +1,6 @@
+{
+  "name": "Brightloop – Subscription Management System",
+  "description": "Enterprise SaaS subscription billing, quotation, automated invoicing, tax, discount, and customer lifecycle management system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
