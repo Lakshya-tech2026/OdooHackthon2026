@@ -6,7 +6,7 @@
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio: https://ai.studio/apps/f68b4de1-e5a1-44cf-8391-2e577a275e07
+View your app in AI Studio: https://brightloop.ai.studio
 
 ## Run Locally
 
