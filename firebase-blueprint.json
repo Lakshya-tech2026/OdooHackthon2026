@@ -34,8 +34,8 @@
       "required": ["id", "name", "email", "status", "createdAt"]
     },
     "Staff": {
-      "title": "Staff",
-      "description": "Operational staff member account managed by Admin.",
+      "Title": "Staff",
+      "Description": "Operational staff member account managed by Admin.",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
@@ -50,8 +50,8 @@
       "required": ["id", "name", "email", "role", "status", "createdAt"]
     },
     "Product": {
-      "title": "Product",
-      "description": "Subscription software, service, or add-on product stored in minor units (paise).",
+      "Title": "Product",
+      "Description": "Subscription software, service, or add-on product stored in minor units (paise).",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
@@ -66,8 +66,8 @@
       "required": ["id", "name", "productType", "salesPricePaise", "costPricePaise", "status", "createdAt"]
     },
     "ProductVariant": {
-      "title": "ProductVariant",
-      "description": "Variant attribute and additional price in paise linked to a Product.",
+      "Title": "ProductVariant",
+      "Description": "Variant attribute and additional price in paise linked to a Product.",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
