@@ -15,9 +15,9 @@
       },
       "required": ["id", "email", "name", "role", "status", "createdAt"]
     },
-    "Customer": {
-      "title": "Customer",
-      "description": "Customer organization or individual profile subscribed to plans.",
+    "CUSTOMER": {
+      "Title": "Customer",
+      "Description": "Customer organization or individual profile subscribed to plans.",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
@@ -81,8 +81,8 @@
       "required": ["id", "productId", "attributeName", "attributeValue", "additionalPricePaise", "status"]
     },
     "Plan": {
-      "title": "Plan",
-      "description": "Recurring billing plan defining frequency, price, and lifecycle policies.",
+      "Title": "Plan",
+      "Description": "Recurring billing plan defining frequency, price, and lifecycle policies.",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
@@ -102,8 +102,8 @@
       "required": ["id", "name", "pricePaise", "billingFrequency", "minQuantity", "allowEarlyClosure", "allowPause", "allowRenewal", "status", "createdAt"]
     },
     "QuotationTemplate": {
-      "title": "QuotationTemplate",
-      "description": "Predefined quotation blueprint with default plan and validity days.",
+      "Title": "QuotationTemplate",
+      "Description": "Predefined quotation blueprint with default plan and validity days.",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
