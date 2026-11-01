@@ -159,7 +159,7 @@
         "taxPaise": { "type": "integer" },
         "totalPaise": { "type": "integer" },
         "status": { "type": "string", "enum": ["DRAFT", "QUOTATION", "CONFIRMED", "ACTIVE", "PAUSED", "CLOSED"] },
-        "createdAt": { "type": "string", "format": "date-time", "maxLength": 64 }
+        "created at": { "type": "string", "format": "date-time", "maxLength": 64 }
       },
       "required": ["id", "subscriptionNumber", "customerId", "planId", "billingFrequency", "startDate", "expiryDate", "subtotalPaise", "discountPaise", "taxPaise", "totalPaise", "status", "createdAt"]
     },
